@@ -1316,6 +1316,13 @@ function saveAsLaTeX() {
     output(texData);
 }
 
+function saveAsJson() {
+    var oldSelectedObject = selectedObject;
+    selectedObject = null;
+    selectedObject = oldSelectedObject;
+    output(localStorage['fsm']);
+}
+
 function det(a, b, c, d, e, f, g, h, i) {
     return a*e*i + b*f*g + c*d*h - a*f*h - b*d*i - c*e*g;
 }
