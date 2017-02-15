@@ -32,9 +32,10 @@ if (typeof btoa == 'undefined') {
 }
 
 function getActiveOption(opts) {
-    var opt = null;
+    if (opts.length == 0) return null;
+    var opt = opts[0];
     for (var i = 0; i < opts.length; i++) {
-        if (opts[i].active) opt = opts[i].name;
+        if (opts[i].active) opt = opts[i];
         break;
     }
     return opt;
@@ -73,10 +74,17 @@ var DropDown = React.createClass({displayName: 'DropDown',
             active: this.state.active ? false : true
         });
     },
+    set_dropdown_item: function (option) {
+        if (this.state.active_option.value != option.value) {
+            this.setState({"active_option": option});
+        }
+    },
     choose_dropdown_item: function (option) {
         this.toggleDropDown();
-        this.setState({"active_option": option});
-        this.props.onChange(option);
+        if (this.state.active_option.value != option.value) {
+            this.set_dropdown_item(option);
+            this.props.onChange(option);
+        }
     },
     dropdown_click: function (e) {
         e.stopPropagation();
@@ -84,18 +92,20 @@ var DropDown = React.createClass({displayName: 'DropDown',
         this.toggleDropDown();
     },
     render: function () {
+        var active_option_name = null;
         var options = this.props.options.map( function (op, i) {
-            if (op.active) {
-                current_active = op.name;
-            }
             var cb = function (e) {
                 e.stopPropagation();
                 e.nativeEvent.stopImmediatePropagation();
-                this.choose_dropdown_item(op.name);
+                this.choose_dropdown_item(op);
             }.bind(this);
+            var is_active = op.value == this.state.active_option.value;
+            if (is_active) {
+                active_option_name = op.name;
+            }
             return (
                 React.createElement("li", {key: "op_" + i, onClick: cb},
-                    React.createElement("a", {className: op.name == this.state.active_option ? "active" : ""}, op.name)
+                    React.createElement("a", {className: is_active ? "active" : ""}, op.name)
                 )
             );
         }.bind(this));
@@ -104,7 +114,7 @@ var DropDown = React.createClass({displayName: 'DropDown',
                 React.createElement("a", {className: "dropdown-button",
                    href: "#!",
                    onClick: this.dropdown_click},
-                   this.state.active_option,
+                   active_option_name,
                    React.createElement("i", {className: "mdi-navigation-arrow-drop-down right"})
                 ),
                 React.createElement("ul", {className: "dropdown-inner" + (this.state.active ? " active" : ""), ref: "dropdown"},
@@ -125,6 +135,7 @@ function Toolbox () {
     this.radius_element = null;
     this._radius        = 30;
     this.shape_element  = null;
+    this.shape_element_react = null;
 
     this.height = function(_) {
         if (arguments.length) {
@@ -158,6 +169,22 @@ function Toolbox () {
             return this;
         }
         return this._width;
+    }
+
+    this.shape = function(_) {
+        if (arguments.length) {
+            this._shape = _;
+            if (this.selection && this.selection.nodeType != this._shape) {
+                this.selection.nodeType = this._shape;
+            }
+            if (this.shape_element_react) {
+                this.shape_element_react.set_dropdown_item({
+                    value: this._shape
+                });
+            }
+            return this;
+        }
+        return this._shape;
     }
 }
 
@@ -197,25 +224,25 @@ Toolbox.prototype.set_shape_element = function (el) {
     var toolbox = this;
     toolbox.shape_element = el;
 
-    React.render(
+    var options = [
+        {value: CIRCLE_NODE_T, name: "circle"},
+        {value: ACCEPT_STATE_NODE_T, name: "accept node"},
+        {value: RECTANGLE_NODE_T, name: "rectangle"},
+        {value: TRIANGLE_NODE_T, name: "triangle"},
+        {value: TEXT_NODE_T, name: "text"}
+    ];
+    toolbox.shape_element_react = React.render(
         React.createElement(DropDown,
             {
-                options: [
-                        {name:"hello", active:true},
-                        {name:"yo", active:false}
-                ],
+                options: options,
                 onChange: function (opname) {
+                    toolbox.shape(opname.value);
+                    draw();
                 }
             }
         ),
         toolbox.shape_element
     );
-    /*
-    OnChange(toolbox.shape_element, function (e) {
-        toolbox.height(parseInt(this.value));
-        draw();
-    });
-    */
 };
 
 Toolbox.prototype.set_radius_element = function (el) {
@@ -235,6 +262,7 @@ Toolbox.prototype.selectObject = function (selection) {
     this.radius(selection.radius);
     this.width(selection.width);
     this.height(selection.height);
+    this.shape(selection.nodeType);
     this.enable_tools();
 };
 
